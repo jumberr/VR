@@ -1,4 +1,4 @@
-# VR Practical assignment #1 (WebGL stereo camera)
+# VR Practical assignment #2 (Videocapture)
 
 ![plot](./PA2/Screenshots/screenshot.jpg)
 
