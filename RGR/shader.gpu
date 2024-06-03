@@ -1,0 +1,114 @@
+
+
+// Vertex shader
+const vertexShaderSource = `
+attribute vec3 vertex;
+attribute vec3 normal;
+attribute vec2 texture;
+uniform mat4 ModelViewProjectionMatrix, normalMat;
+varying vec3 normalInterp;
+varying vec3 vertPos;
+uniform float scaleFactor;
+varying vec2 vTexture;
+uniform vec2 pointPos;
+
+mat4 translation(float tx, float ty, float tz) {
+    mat4 dst;
+
+    dst[0][0] = 1.0;
+    dst[0][ 1] = 0.0;
+    dst[0][ 2] = 0.0;
+    dst[0][ 3] = 0.0;
+    dst[1][ 0] = 0.0;
+    dst[1][ 1] = 1.0;
+    dst[1][ 2] = 0.0;
+    dst[1][ 3] = 0.0;
+    dst[2][ 0] = 0.0;
+    dst[2][ 1] = 0.0;
+    dst[2][ 2] = 1.0;
+    dst[2][ 3] = 0.0;
+    dst[3][ 0] = tx;
+    dst[3][ 1] = ty;
+    dst[3][ 2] = tz;
+    dst[3][ 3] = 1.0;
+
+    return dst;
+}
+
+mat4 scaling(float s){
+    mat4 dst;
+
+    dst[0][0] = s;
+    dst[0][ 1] = 0.0;
+    dst[0][ 2] = 0.0;
+    dst[0][ 3] = 0.0;
+    dst[1][ 0] = 0.0;
+    dst[1][ 1] = s;
+    dst[1][ 2] = 0.0;
+    dst[1][ 3] = 0.0;
+    dst[2][ 0] = 0.0;
+    dst[2][ 1] = 0.0;
+    dst[2][ 2] = s;
+    dst[2][ 3] = 0.0;
+    dst[3][ 0] = 0.0;
+    dst[3][ 1] = 0.0;
+    dst[3][ 2] = 0.0;
+    dst[3][ 3] = 1.0;
+
+    return dst;
+}
+
+void main() {
+    mat4 translate = translation(-pointPos.x,-pointPos.y,0.0);
+    mat4 translatee = translation(pointPos.x,pointPos.y,0.0);
+    mat4 scale = scaling(scaleFactor);
+    vec4 tex = translate*vec4(texture,0.0,1.0);
+    vec4 texx = scale*tex;
+    vec4 texxx = translatee*texx;
+    vTexture = vec2(texxx.x,texxx.y);
+    normalInterp = vec3(normalMat * vec4(normal, 0.0));
+    gl_Position = ModelViewProjectionMatrix * vec4(vertex,1.0);
+}`;
+
+
+// Fragment shader
+const fragmentShaderSource = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+   precision highp float;
+#else
+   precision mediump float;
+#endif
+
+uniform vec4 color;
+varying vec3 normalInterp;
+varying vec3 vertPos;
+uniform sampler2D tmu;
+varying vec2 vTexture;
+uniform float scaleFactor;
+
+void main() {
+    vec3 N = normalize(normalInterp);
+    vec3 lightDir = vec3(1.0,1.0,1.0);
+
+    // Lambert's cosine law
+    float lambertian = max(dot(N, lightDir), 0.0);
+    float specular = 0.0;
+    if(lambertian > 0.0) {
+        vec3 R = reflect(-lightDir, N);      // Reflected light vector
+        vec3 V = normalize(-vertPos); // Vector to viewer
+        // Compute the specular term
+        float specAngle = max(dot(R, V), 0.0);
+        specular = pow(specAngle, 10.0);
+    }
+    vec3 ambientColor = vec3(0.1);
+    vec3 diffuseColor = vec3(0.2,0.0,0.8);
+    vec3 specularColor = vec3(1.0);
+    vec4 lightColor = vec4(ambientColor + lambertian * diffuseColor + specular * specularColor, 1.0);
+    vec4 textureColor = texture2D(tmu, vTexture);
+    if(scaleFactor>0.0){
+        gl_FragColor = textureColor;
+    } else{
+        gl_FragColor = vec4(1.0,0,0,1.0);
+    }
+    
+}`;
